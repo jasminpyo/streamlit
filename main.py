@@ -3,7 +3,7 @@ import boto3
 import os
 from dotenv import load_dotenv
 from datetime import datetime
-import pandas as pd
+import pandas as pd 
 
 # Load environment variables
 load_dotenv()
@@ -11,35 +11,6 @@ load_dotenv()
 # Setup
 st.set_page_config(page_title="Simple RAG Chatbot", page_icon="🤖")
 st.title("Simple RAG Chatbot")
-
-# Student Data Setup
-@st.cache_data
-def load_student_data():
-    try:
-        return pd.read_csv('SLATE_Query_With_Names_Formatted.csv')
-    except FileNotFoundError:
-        st.error("Student data file not found")
-        return pd.DataFrame()
-
-def find_student_data(df, user_input):
-    if df.empty:
-        return None
-    
-    # Search by name columns
-    name_cols = [col for col in df.columns if 'name' in col.lower()]
-    for col in name_cols:
-        matches = df[df[col].str.contains(user_input, case=False, na=False)]
-        if not matches.empty:
-            return matches.iloc[0].to_dict()
-    
-    # Search by ID columns
-    id_cols = [col for col in df.columns if 'id' in col.lower()]
-    for col in id_cols:
-        matches = df[df[col].astype(str).str.contains(user_input, case=False, na=False)]
-        if not matches.empty:
-            return matches.iloc[0].to_dict()
-    
-    return None
 
 # AWS Setup
 @st.cache_resource
@@ -51,63 +22,27 @@ def setup_bedrock():
         # region_name=os.getenv('AWS_DEFAULT_REGION')
     )
 
-# Authentication Setup
-def authenticate_student(df, student_id):
-    if df.empty:
-        return False, None
-    
-    # Search for student ID in ID columns
-    id_cols = [col for col in df.columns if 'id' in col.lower()]
-    for col in id_cols:
-        matches = df[df[col].astype(str) == str(student_id)]
-        if not matches.empty:
-            return True, matches.iloc[0].to_dict()
-    return False, None
-
 # Initialize
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "student_info" not in st.session_state:
-    st.session_state.student_info = None
 
 bedrock = setup_bedrock()
 kb_id = os.getenv('KNOWLEDGE_BASE_ID')
-student_df = load_student_data()
 
-# Authentication Check
-if not st.session_state.authenticated:
-    st.subheader("Student Authentication Required")
-    student_id = st.text_input("Enter your Student ID:", type="password")
-    
-    if st.button("Login"):
-        if student_id:
-            is_valid, student_data = authenticate_student(student_df, student_id)
-            if is_valid:
-                st.session_state.authenticated = True
-                st.session_state.student_info = student_data
-                st.success("Authentication successful!")
-                st.rerun()
-            else:
-                st.error("Invalid Student ID. Please try again.")
-        else:
-            st.error("Please enter your Student ID.")
-else:
-    # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-    
-    # Logout button
-    if st.button("Logout"):
-        st.session_state.authenticated = False
-        st.session_state.student_info = None
-        st.session_state.messages = []
-        st.rerun()
+# Authentication Process
+if "auth" not in st.session_state: # alter so its "if KEY not in"
+    st.session_state.auth = False
 
-    # Chat input
-    if prompt := st.chat_input("Ask me anything about Cal Poly San Luis Obispo's math placement system..."):
+# Display chat history
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+# CSV file
+df = pd.read_csv('SLATE_Query_With_Names_Formatted.csv')
+
+# Chat input
+if prompt := st.chat_input("Ask me anything about Cal Poly San Luis Obispo's math placement system..."):
     # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -117,23 +52,18 @@ else:
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
-                # Use authenticated student data
-                student_context = f"\n\nStudent Data: {st.session_state.student_info}"
-                
                 # Call Bedrock Knowledge Base
                 response = bedrock.retrieve_and_generate(
                     # augmented prompt / LLM instructions
                     input={
                         'text': (
-                            "You are a helpful assistant for Cal Poly's math placement system. "
+                            "You are a helpful assistant. "
                             "Always respond in clear, concise sentences. "
-                            "If student data is provided, use it to give personalized assistance. "
                             "If you are unsure of the answer, ask the user to clarify their question. "
                             "After clarification, if you don't know the answer, tell the user to contact the math department. "
                             "When using the knowledge base please keep the current date and time in mind: "
                             f"Current date and time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-                            "When you use information from the knowledge base, cite it at the end."
-                            f"{student_context}\n\n"
+                            "When you use information from the knowledge base, cite it at the end.\n\n"
                             f"User question: {prompt}"
                         )
                     },
