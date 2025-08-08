@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
+
+.stApp {
+    background-color: #F8F8F8;
+}
+
+h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: #154734;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 2rem;
+}
+
+.stChatMessage {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    margin: 10px 0;
+}
+
+.stChatMessage[data-testid="user-message"] {
+    background-color: #e0e0e0;
+}
+
+.stChatMessage[data-testid="assistant-message"] {
+    background-color: #154734;
+    color: white;
+}
+
+.stTextInput input {
+    border-radius: 25px;
+    border: 2px solid #154734;
+}
+
+.stButton button {
+    background-color: #154734;
+    color: white;
+    border-radius: 25px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+}
