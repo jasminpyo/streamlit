@@ -9,8 +9,100 @@ import pandas as pd
 load_dotenv()
 
 # Setup
-st.set_page_config(page_title="Simple RAG Chatbot", page_icon="🤖")
-st.title("Simple RAG Chatbot")
+st.set_page_config(page_title="MR. MINI CLINT", page_icon="🧮")
+
+# Custom CSS
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');
+
+.stApp {
+    background-color: #F8F8F8;
+}
+
+h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: #154734;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 2rem;
+}
+
+.stChatMessage {
+    margin: 10px 0;
+    border-radius: 15px;
+}
+            
+.stChatMessage[data-testid="user-message"] {
+    background-color: #e0e0e0;
+    margin-left: 20%;
+}
+
+/* div[data-testid="stChatMessage"] {
+    background-color: #ffd9b3;
+    color: black;
+} */
+
+
+.stChatMessage[data-testid="assistant-message"] {
+    background-color: #154734;
+    color: white;
+    margin-right: 20%;
+}
+
+.stChatInput input {
+    border-radius: 25px;
+    border: 2px solid #154734;
+}
+
+.stButton button {
+    background-color: #154734;
+    color: white;
+    border-radius: 25px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.stTextInput input {
+    border-radius: 25px;
+    border: 2px solid #154734;
+}
+
+hr {
+    border: none;
+    height: 2px;
+    background-color: #154734;
+    margin: 20px 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Display Cal Poly logo at top
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    st.image("calpoly-logo.png", width=150)
+
+
+# Initialize
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "student_info" not in st.session_state:
+    st.session_state.student_info = None
+
+st.title("MR. MINI CLINT")
+st.markdown('<hr style="border: none; height: 2px; background-color: #154734; margin: 20px 0;">', unsafe_allow_html=True)
+
+if st.session_state.authenticated == True:
+    if st.button("Logout"):
+        st.session_state.authenticated = False
+        st.session_state.student_info = None
+        st.session_state.messages = []
+        st.rerun()
 
 # Student Data Setup
 @st.cache_data
@@ -53,13 +145,7 @@ def setup_bedrock():
         # region_name=os.getenv('AWS_DEFAULT_REGION')
     )
 
-# Initialize
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "student_info" not in st.session_state:
-    st.session_state.student_info = None
+
 
 bedrock = setup_bedrock()
 kb_id = os.getenv('KNOWLEDGE_BASE_ID')
@@ -67,43 +153,55 @@ student_df = load_student_data()
 
 # Authentication Check
 if not st.session_state.authenticated:
-    st.subheader("Student Authentication Required")
-    student_id = st.text_input("Enter your Student ID:", type="password")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    if st.button("Login"):
-        if student_id:
-            is_valid, student_data = authenticate_student(student_df, student_id)
-            if is_valid:
+    # Center the login form
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### Welcome! Please sign in")
+        student_id = st.text_input("Enter your Student ID:", type="password", placeholder="Student ID")
+        
+        # Button layout
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("Login", use_container_width=True):
+                if student_id:
+                    is_valid, student_data = authenticate_student(student_df, student_id)
+                    if is_valid:
+                        st.session_state.authenticated = True
+                        st.session_state.student_info = student_data
+                        st.success("Authentication successful!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid Student ID. Please try again.")
+                else:
+                    st.error("Please enter your Student ID.")
+        
+        with btn_col2:
+            if st.button("Guest", use_container_width=True):
                 st.session_state.authenticated = True
-                st.session_state.student_info = student_data
-                st.success("Authentication successful!")
+                st.session_state.student_info = {"name": "Guest User", "EMPLID": "guest"}
+                st.success("Welcome, Guest!")
                 st.rerun()
-            else:
-                st.error("Invalid Student ID. Please try again.")
-        else:
-            st.error("Please enter your Student ID.")
 else:
     # Display chat history
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+        if message["role"] == "user":
+            with st.chat_message("user", avatar='🐴'):
+                st.write(message["content"])
+        else:
+            with st.chat_message("assistant", avatar='🧮'):
+                st.write(message["content"])
     
-    # Logout button
-    if st.button("Logout"):
-        st.session_state.authenticated = False
-        st.session_state.student_info = None
-        st.session_state.messages = []
-        st.rerun()
-
     # Chat input
-    if prompt := st.chat_input("Ask me anything about Cal Poly San Luis Obispo's math placement system..."):
+    if prompt := st.chat_input("Math ain't mathing? Ask me..."):
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar='🐴'):
             st.write(prompt)
         
         # Get AI response
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar='🧮'):
             with st.spinner("Thinking..."):
                 try:
                     # Use authenticated student data
@@ -144,3 +242,6 @@ else:
                     
                 except Exception as e:
                     st.error(f"Error: {e}")
+    
+    # Logout button at bottom
+    
